@@ -4,6 +4,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
+const { exec } = require('child_process'); // এই লাইনটি অবশ্যই যুক্ত করবেন
 const request = require('request');
 const countryEmoji = require('country-emoji');
 const mongoose = require('mongoose');
@@ -543,24 +544,39 @@ bot.on('message', async (msg) => {
         bot.sendMessage(chatId, "Welcome! Choose your option:", { reply_markup: getMainMenuKeyboard(userId) });
 
         } else if ((text === '/restart' || text === '🔄 Restart') && isAdmin(userId)) {
-
             bot.sendMessage(
                 chatId,
-                "🔄 **Updating from GitHub...**\n♻️ **Restarting bot...**",
+                "🔄 **Connecting to GitHub...**\n⏳ Checking for updates...",
                 { parse_mode: 'Markdown' }
             );
 
-            exec(
-                'cd sms && git pull origin main && pm2 restart sms',
-                (error, stdout, stderr) => {
-                    if (error) {
-                        bot.sendMessage(chatId, "❌ Update failed!\nCheck VPS logs.");
-                        return;
-                    }
+            // কমান্ড: গিট পুল করবে এবং সফল হলে PM2 রিস্টার্ট দিবে
+            // 'pm2 restart all' ব্যবহার করা হয়েছে যাতে প্রসেসের নাম যা-ই হোক রিস্টার্ট নেয়।
+            exec('git pull origin main && npm install', (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Update Error: ${error}`);
+                    bot.sendMessage(chatId, `❌ **Update Failed!**\nError: \`${error.message}\`\n\nCheck VPS Console.`, { parse_mode: 'Markdown' });
+                    return;
                 }
-            );
+
+                if (stdout.includes('Already up to date.')) {
+                    bot.sendMessage(chatId, "✅ **System is Already Updated!**\nNo restart required.");
+                } else {
+                    bot.sendMessage(chatId, `✅ **Update Successful!**\n📄 Log:\n\`${stdout.substring(0, 100)}...\`\n\n♻️ **Restarting Bot in 3s...**`, { parse_mode: 'Markdown' });
+
+                    // ৩ সেকেন্ড পর রিস্টার্ট কমান্ড
+                    setTimeout(() => {
+                        exec('pm2 restart all', (err) => {
+                            if (err) {
+                                // যদি pm2 কমান্ড কাজ না করে, প্রসেস ফোর্স এক্সিট করবে (PM2 অটো রিস্টার্ট করবে)
+                                process.exit(0); 
+                            }
+                        });
+                    }, 3000);
+                }
+            });
         }
-        
+
     else if ((text === '🔑 Admin Menu' || text === '/admin') && isAdmin(userId)) {
         delete user_states[userId];
         bot.sendMessage(chatId, "🔑 **Admin Panel**", { parse_mode: 'Markdown', reply_markup: getAdminMenuKeyboard() });
@@ -751,9 +767,9 @@ async function sendStatus(chatId) {
     const mongoUsers = await UserModel.countDocuments({});
 
    const text = `🤖 **System Status**\n---\n👥 Users (Hybrid): \`${users}\`\n💾 Users (DB2): \`${mongoUsers}\n➡️ Numbers: \`${total}\`\n🟢 Available: \`${avail}\`\n🔴 Used: \`${total - avail}\`\n⚫ History: \`${await NumberModel.countDocuments({ status: 'Used_History' })}\``;
-    
 
-    
+
+
     bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup: getAdminMenuKeyboard() });
 }
 
