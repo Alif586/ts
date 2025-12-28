@@ -110,14 +110,14 @@ logger("SYSTEM", "Bot service starting...", COLOR.blue);
 // 📂 Load Bot Modules
 // ===============================
 
-safeRequire('./Number/main');
-safeRequire('./Number/d-grup');
+safeRequire('./main');
+/*safeRequire('./Number/d-grup');
 //safeRequire('./Number/d-grup1');
 safeRequire('./Number/d-grup2');
 safeRequire('./Number/d-grup3');
 safeRequire('./Number/d-grup4');
 safeRequire('./Number/d-grup5');
 safeRequire('./Number/imss');
-safeRequire('./Number/imss1');
+safeRequire('./Number/imss1');*/
 
 logger("SYSTEM", "All modules are now being monitored", COLOR.blue);
